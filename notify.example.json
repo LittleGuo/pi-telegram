@@ -1,0 +1,7 @@
+{
+  "telegram": {
+    "token": "<BotFather 给的 token>",
+    "proxy": "",
+    "chatId": "<你的 chat id>"
+  }
+}
