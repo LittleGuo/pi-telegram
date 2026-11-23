@@ -13,11 +13,19 @@ $alive = Get-CimInstance Win32_Process |
     Where-Object { $_.CommandLine -like '*telegram-tui-bridge.py*' }
 if ($alive) { exit 0 }
 
-if (-not (Test-Path -LiteralPath $pythonw)) { $pythonw = 'pythonw.exe' }
+# 换机器后 Python 版本/路径会变，回退到 PATH 里的 pythonw
+if (-not (Test-Path -LiteralPath $pythonw)) {
+    $onPath = Get-Command pythonw.exe -ErrorAction SilentlyContinue
+    $pythonw = if ($onPath) { $onPath.Source } else { 'pythonw.exe' }
+}
 $p = Start-Process -FilePath $pythonw `
     -ArgumentList "`"$script`"" `
     -WorkingDirectory $root `
     -WindowStyle Hidden `
     -PassThru
-if ($p) { Set-Content -LiteralPath $pidFile -Value $p.Id -Encoding ASCII }
-Add-Content -Path $log -Value ("{0} TUI 桥不在，已重新拉起 pid={1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $p.Id)
+if ($p) {
+    Set-Content -LiteralPath $pidFile -Value $p.Id -Encoding ASCII
+    Add-Content -Path $log -Value ("{0} TUI 桥不在，已重新拉起 pid={1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $p.Id)
+} else {
+    Add-Content -Path $log -Value ("{0} 拉起失败：找不到 {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $pythonw)
+}

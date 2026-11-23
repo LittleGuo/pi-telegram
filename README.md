@@ -21,14 +21,35 @@
 - `telegram-tui-bridge.pid`
 - `notify.json`（含 bot token，**别提交**）
 
-## 安装
+## 安装（新机器）
 
-1. 依赖：Windows、Python 3、一个 Telegram bot（`@BotFather`）。
-2. 把 `notify.example.json` 复制成 `%USERPROFILE%\.pi\agent\notify.json`，填 token / chatId（需要代理就填 `proxy`，例如 `http://127.0.0.1:7897`）。
-3. 跑 `pwsh -File install.ps1`。
-4. 在 pi TUI 里执行 `/reload`（不用关会话）。
+1. 依赖：Windows、Python 3（`pythonw.exe` 在 PATH 里即可，不要求装在固定路径）、pi、一个 Telegram bot（`@BotFather`）。
+2. `git clone` 本仓库，随便放哪都行（脚本全部相对自身路径）。
+3. 建配置：把 `notify.example.json` 复制成 `%USERPROFILE%\.pi\agent\notify.json`，填三项——
+   - `token`：BotFather 给的
+   - `chatId`：你自己的 telegram id
+   - `proxy`：需要代理才填（如 `http://127.0.0.1:7897`），直连留 `""`
+   缺这个文件 `install.ps1` 会直接报错退出，因为桥在 pythonw 里崩了你看不见。
+4. 跑 `pwsh -File install.ps1`（复制扩展 + 重启桥）。
+5. 在 pi TUI 里执行 `/reload`（不用关会话）。
+6. 验证：给 bot 发一条消息，日志应出现 `目标会话 sid=…` → `投递方式 mode=…` → `已回复`。
 
-验证：给 bot 发一条消息。日志里应出现 `目标会话 sid=... → 投递方式 mode=... → 已回复`。
+可选：把 `ensure-bridge.ps1` 挂成计划任务（5 分钟一次），桥挂了会自动拉起。
+
+## 换机器 / 两台机器
+
+**同一个 bot token 只能有一个进程在 `getUpdates`**，两边都开着会互抢（HTTP 409），消息随机落到旧机器上。所以换机器时顺序是：
+
+1. 旧机器先停桥：
+   ```powershell
+   Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*telegram-tui-bridge.py*' } |
+       ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+   ```
+   如果挂了计划任务，一并 `Disable-ScheduledTask`。
+2. 新机器按上面五步装。
+3. `notify.json` 不在仓库里（含 token），要么从旧机器复制，要么手填。
+
+状态不进仓库：日志、`offset`、pid 都在新机器的 `~\.pi\agent\` 下重新生成。`offset` 不带走也没关系，Telegram 会重放最多 24 小时内未确认的消息。
 
 ## 使用限制（脚本里是硬编码）
 
