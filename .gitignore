@@ -1,0 +1,4 @@
+# 运行时产物不在仓库里（都在 %USERPROFILE%\.pi\agent\）
+__pycache__/
+*.pyc
+notify.json
