@@ -1,0 +1,23 @@
+{
+  "name": "pi-telegram",
+  "version": "0.1.0",
+  "description": "Chat with the running pi TUI session from Telegram: the bridge feeds messages through pi.sendUserMessage()",
+  "keywords": ["pi-package", "telegram", "bridge"],
+  "license": "MIT",
+  "author": "LittleGuo",
+  "repository": { "type": "git", "url": "git+https://github.com/LittleGuo/pi-telegram.git" },
+  "homepage": "https://github.com/LittleGuo/pi-telegram#readme",
+  "type": "module",
+  "files": [
+    "pi-telegram-tui-bridge.ts",
+    "telegram-tui-bridge.py",
+    "ensure-bridge.ps1",
+    "install.ps1"
+  ],
+  "pi": {
+    "extensions": ["./pi-telegram-tui-bridge.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

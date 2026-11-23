@@ -9,9 +9,10 @@
 | 文件 | 作用 |
 |---|---|
 | `pi-telegram-tui-bridge.ts` | pi 扩展。监听 `%TEMP%\pi-telegram-tui-bridge\<sid>.req`，调 `pi.sendUserMessage()` 投递；`agent_settled` 时写 `<sid>.settled`；在 `<sid>.alive` / `current.json` 里登记在线会话 |
+| `package.json` | pi 包声明：`pi.extensions` 指向上面的 `.ts`。装了它就不需要往 `~\.pi\agent\extensions\` 复制副本 |
 | `telegram-tui-bridge.py` | 后台进程。Telegram 长轮询 → 选目标 TUI 会话 → 写 `.req` → 等 `.settled` → 从 jsonl 抽本轮 assistant 文本 → 分片发回 |
 | `ensure-bridge.ps1` | 看门狗：桥不在就拉起（可挂计划任务，5 分钟一次） |
-| `install.ps1` | 把 `.ts` 复制到 `~\.pi\agent\extensions\`，杀掉旧桥再拉起，实现更新 |
+| `install.ps1` | 一键：`pi install <本目录>` 登记包 + 检查 `notify.json` + 重启桥 |
 | `notify.example.json` | 配置样板：token / proxy / chatId |
 
 运行时产物（日志、offset、pid）写在 `~\.pi\agent\`，不进仓库：
@@ -30,11 +31,21 @@
    - `chatId`：你自己的 telegram id
    - `proxy`：需要代理才填（如 `http://127.0.0.1:7897`），直连留 `""`
    缺这个文件 `install.ps1` 会直接报错退出，因为桥在 pythonw 里崩了你看不见。
-4. 跑 `pwsh -File install.ps1`（复制扩展 + 重启桥）。
-5. 在 pi TUI 里执行 `/reload`（不用关会话）。
-6. 验证：给 bot 发一条消息，日志应出现 `目标会话 sid=…` → `投递方式 mode=…` → `已回复`。
+4. 登记成 pi 包：在仓库目录里跑 `pi install .`。
+   - 扩展由 pi 直接从这个目录加载（本地包不复制），改完 `git pull` 或改文件后只需 `/reload`。
+   - 不想装后台依赖、只要扩展的话，`pi install git:github.com/LittleGuo/pi-telegram` 也行。
+   - 已装过旧版（`~\.pi\agent\extensions\pi-telegram-tui-bridge.ts` 有副本）记得把副本删掉，否则扩展会被加载两次、同一条消息投递两遍。
+5. 跑 `pwsh -File install.ps1`（检查配置 + 重启桥；它会顺手再跑一次幂等的 `pi install`）。
+6. 在 pi TUI 里执行 `/reload`（不用关会话）。
+7. 验证：给 bot 发一条消息，日志应出现 `目标会话 sid=…` → `投递方式 mode=…` → `已回复`。
 
 可选：把 `ensure-bridge.ps1` 挂成计划任务（5 分钟一次），桥挂了会自动拉起。
+
+### 更新
+
+- 只改了扩展：`git pull` → pi 里 `/reload`。
+- 改了桥（`.py`）：`git pull` → `pwsh -File install.ps1`（或直接跑 `ensure-bridge.ps1` 前先杀掉旧进程）。
+- `pi list` 能看到它，`pi remove <路径>` 只注销扩展，不停后台桥。
 
 ## 换机器 / 两台机器
 
@@ -46,7 +57,7 @@
        ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
    ```
    如果挂了计划任务，一并 `Disable-ScheduledTask`。
-2. 新机器按上面五步装。
+2. 新机器按上面七步装。
 3. `notify.json` 不在仓库里（含 token），要么从旧机器复制，要么手填。
 
 状态不进仓库：日志、`offset`、pid 都在新机器的 `~\.pi\agent\` 下重新生成。`offset` 不带走也没关系，Telegram 会重放最多 24 小时内未确认的消息。

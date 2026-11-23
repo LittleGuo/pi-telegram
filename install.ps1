@@ -1,8 +1,10 @@
-﻿# 安装 / 更新：把扩展复制到 pi 的全局扩展目录，并重启桥进程（杀旧的，再由看门狗拉起）。
+﻿# 安装 / 更新三件事：
+#   1) 用 pi 把这个目录登记成包（扩展由 pi 直接从这里加载，不再往 extensions 里复制副本）
+#   2) 检查 notify.json 在不在
+#   3) 重启桥进程（杀旧的，再由看门狗拉起）
 # 用法：pwsh -File install.ps1   然后到 pi TUI 里 /reload
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$extDir = "$env:USERPROFILE\.pi\agent\extensions"
 $notify = "$env:USERPROFILE\.pi\agent\notify.json"
 
 # 没有 notify.json 时桥会在 pythonw 里静默崩掉，先拦住
@@ -12,8 +14,16 @@ if (-not (Test-Path -LiteralPath $notify)) {
     exit 1
 }
 
-New-Item -ItemType Directory -Force -Path $extDir | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'pi-telegram-tui-bridge.ts') -Destination $extDir -Force
+$pi = (Get-Command pi -ErrorAction SilentlyContinue).Source
+if (-not $pi) {
+    $fallback = "$env:USERPROFILE\.pi\agent\bin\pi.cmd"
+    if (Test-Path -LiteralPath $fallback) { $pi = $fallback }
+}
+if ($pi) {
+    & $pi install $root
+} else {
+    Write-Host "没找到 pi 命令，请在 pi 里手动登记：pi install $root" -ForegroundColor Yellow
+}
 
 Get-CimInstance Win32_Process |
     Where-Object { $_.CommandLine -like '*telegram-tui-bridge.py*' } |
@@ -21,4 +31,4 @@ Get-CimInstance Win32_Process |
 Start-Sleep -Seconds 2
 & (Join-Path $root 'ensure-bridge.ps1')
 
-Write-Host '扩展已复制到 ~\.pi\agent\extensions\，桥已重启。到 pi TUI 执行 /reload 生效。'
+Write-Host '桥已重启。到 pi TUI 执行 /reload 让扩展从本仓库生效。'
